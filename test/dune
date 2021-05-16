@@ -1,0 +1,7 @@
+(executable
+ (name test)
+ (libraries unix protype protype-robin))
+
+(rule
+ (alias runtest)
+ (action (run ./test.exe)))
