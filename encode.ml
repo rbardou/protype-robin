@@ -13,8 +13,10 @@ let rec encode_value: 'a. Id_set.t ref -> version: Protype.version ->
         Robin.Encode.int 0
     | Bool ->
         Robin.Encode.bool value
+    | Char ->
+        Robin.Encode.int (Char.code value)
     | Int ->
-        Robin.Encode.int64 (Int64.of_int value)
+        Robin.Encode.int value
     | Int32 ->
         Robin.Encode.int32 value
     | Int64 ->

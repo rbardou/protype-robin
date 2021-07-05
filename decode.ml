@@ -10,6 +10,7 @@ let toplevel_id_value = Id.make "value"
 type error_kind =
   | Robin_error of Robin.Decode.error
   | Invalid_toplevel
+  | Invalid_char of int
   | Unsupported_large_tag of string
   | Unsupported_large_int of string
   | Unsupported_float_size of int
@@ -24,6 +25,7 @@ type error_kind =
 let show_error_kind = function
   | Robin_error error -> Robin.Decode.show_error error
   | Invalid_toplevel -> "invalid toplevel"
+  | Invalid_char i -> "invalid char code: " ^ string_of_int i
   | Unsupported_large_tag s -> "unsupported large tag: \"" ^ String.escaped s ^ "\""
   | Unsupported_large_int s -> "unsupported large int: \"" ^ String.escaped s ^ "\""
   | Unsupported_float_size i -> "unsupported float size: " ^ string_of_int i
@@ -449,6 +451,9 @@ and decode_value: 'a. ignore_unknown_fields: bool -> version: Protype.version ->
   match typ with
     | Unit -> (decode_unit value: a)
     | Bool -> decode_bool value
+    | Char ->
+        let i = decode_int value in
+        if i < 0 || i > 255 then error (Invalid_char i) else Char.chr i
     | Int -> decode_int value
     | Int32 -> decode_int32 value
     | Int64 -> decode_int64 value

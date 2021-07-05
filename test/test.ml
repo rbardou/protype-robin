@@ -6,6 +6,32 @@ let verbose = false
 
 let total_bytes = ref 0
 
+let hex_char_of_int = function
+  | 0 -> '0'
+  | 1 -> '1'
+  | 2 -> '2'
+  | 3 -> '3'
+  | 4 -> '4'
+  | 5 -> '5'
+  | 6 -> '6'
+  | 7 -> '7'
+  | 8 -> '8'
+  | 9 -> '9'
+  | 10 -> 'a'
+  | 11 -> 'b'
+  | 12 -> 'c'
+  | 13 -> 'd'
+  | 14 -> 'e'
+  | 15 -> 'f'
+  | i -> invalid_arg ("hex_char_of_int " ^ string_of_int i)
+
+let to_hex s =
+  String.init (String.length s * 2) @@ fun i ->
+  if i mod 2 = 0 then
+    hex_char_of_int (Char.code s.[i / 2] lsr 4)
+  else
+    hex_char_of_int (Char.code s.[i / 2] land 0xF)
+
 let check typ value =
   let encoded = Encode.to_string ~version: 0 typ value in
   total_bytes := !total_bytes + String.length encoded;
@@ -14,7 +40,8 @@ let check typ value =
         let equal = decoded = value in
         if not equal then echo "error: not equal:";
         if not equal || verbose then
-          echo "%s\n=> %S\n=> %s" (Protype.show_value typ value) encoded
+          echo "%s\n=> %S (%s)\n=> %s" (Protype.show_value typ value)
+            encoded (to_hex encoded)
             (Protype.show_value typ decoded)
     | Error error ->
         echo "error: %s" (Decode.show_error error)
@@ -218,6 +245,12 @@ struct
     );
     check Protype.bool false;
     check Protype.bool true;
+    check Protype.char '\000';
+    check Protype.char '\001';
+    check Protype.char 'x';
+    check Protype.char ' ';
+    check Protype.char '\254';
+    check Protype.char '\255';
     if not fast then (
       for _ = 0 to 100000 do
         check Protype.float (Random.float 100000000.)

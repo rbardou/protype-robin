@@ -4,6 +4,7 @@
 type error_kind =
   | Robin_error of Robin.Decode.error
   | Invalid_toplevel
+  | Invalid_char of int
   | Unsupported_large_tag of string
   | Unsupported_large_int of string
   | Unsupported_float_size of int
