@@ -95,6 +95,10 @@ let rec encode_value: 'a. Id_set.t ref -> version: Protype.version ->
           encode_value id_set ~version current value
         else
           encode_value id_set ~version old value
+    | Annotate (_, typ) ->
+        encode_value id_set ~version typ value
+    | Recursive f | Expanded_recursive (_, f) ->
+        encode_value id_set ~version (f typ) value
 
 let encode_full ~version typ value =
   let id_set = ref Id_set.empty in

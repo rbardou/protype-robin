@@ -477,6 +477,10 @@ and decode_value: 'a. ignore_unknown_fields: bool -> version: Protype.version ->
     | Versions { old; from; current } ->
         let typ = if version < from then old else current in
         decode_value ~ignore_unknown_fields ~version id_table typ value
+    | Annotate (_, typ) ->
+        decode_value ~ignore_unknown_fields ~version id_table typ value
+    | Recursive f | Expanded_recursive (_, f) ->
+        decode_value ~ignore_unknown_fields ~version id_table (f typ) value
 
 let add_tag_id acc ((tag: Robin.Value.tag), (id: Robin.Value.t)) =
   match id with
