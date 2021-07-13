@@ -97,7 +97,7 @@ let rec pp_value ~indent ~tags fmt (value: Robin.Value.t) =
             done;
             !c
           in
-          bin_count > length / 2
+          bin_count > length / 4
         then
           f "%s" (hex_of_string s)
         else
