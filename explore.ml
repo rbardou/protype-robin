@@ -54,74 +54,101 @@ let hex_of_string s =
   else
     hex_char_of_int (Char.code s.[i / 2] land 0xF)
 
-let rec pp_value ~indent ~tags fmt (value: Robin.Value.t) =
+let decr_max_depth = Option.map (fun x -> x - 1)
+
+let rec pp_value ~custom ~indent ~tags ~max_depth fmt (value: Robin.Value.t) =
   let f x = Format.fprintf fmt x in
-  match value with
-    | UInt64 i ->
-        if i < 0L then
-          f "very large int64 (unsupported)"
-        else (
-          match Int_map.find_opt (Int64.to_int i) tags with
-            | None ->
-                f "%Ld" i
-            | Some tag ->
-                f "%Ld (%s)" i tag
-        )
-    | Int64 i ->
-        f "%Ld" i
-    | UIntLE s ->
-        f "UIntLE %S" s
-    | IntLE s ->
-        f "IntLE %S" s
-    | UIntBE s ->
-        f "UIntBE %S" s
-    | IntBE s ->
-        f "IntBE %S" s
-    | Bool b ->
-        f "%b" b
-    | Float3 c ->
-        f "%C" c
-    | Float x ->
-        f "%f" x
-    | Float_other s ->
-        f "Float_other %S" s
-    | String s ->
-        if
-          let length = String.length s in
-          let bin_count =
-            let c = ref 0 in
-            for i = 0 to length - 1 do
-              match s.[i] with
-                | '\032' .. '\126' -> ()
-                | _ -> incr c
-            done;
-            !c
-          in
-          bin_count > length / 4
-        then
-          f "%s" (hex_of_string s)
-        else
-          f "%S" s
-    | Array a ->
-        pp_value_list ~indent ~tags fmt (Array.to_list a)
-    | List l ->
-        pp_value_list ~indent ~tags fmt l
-    | Record_array a ->
-        pp_value_record ~indent ~tags fmt (Array.to_list a)
-    | Record_list l ->
-        pp_value_record ~indent ~tags fmt l
+  let too_deep () =
+    match max_depth with
+      | None -> false
+      | Some max_depth -> max_depth <= 0
+  in
+  if not (custom ~indent ~max_depth fmt value) then
+    match value with
+      | UInt64 i ->
+          if i < 0L then
+            f "very large int64 (unsupported)"
+          else (
+            match Int_map.find_opt (Int64.to_int i) tags with
+              | None ->
+                  f "%Ld" i
+              | Some tag ->
+                  f "%Ld (%s)" i tag
+          )
+      | Int64 i ->
+          f "%Ld" i
+      | UIntLE s ->
+          f "UIntLE %S" s
+      | IntLE s ->
+          f "IntLE %S" s
+      | UIntBE s ->
+          f "UIntBE %S" s
+      | IntBE s ->
+          f "IntBE %S" s
+      | Bool b ->
+          f "%b" b
+      | Float3 c ->
+          f "%C" c
+      | Float x ->
+          f "%f" x
+      | Float_other s ->
+          f "Float_other %S" s
+      | String s ->
+          if
+            let length = String.length s in
+            let bin_count =
+              let c = ref 0 in
+              for i = 0 to length - 1 do
+                match s.[i] with
+                  | '\032' .. '\126' -> ()
+                  | _ -> incr c
+              done;
+              !c
+            in
+            bin_count > length / 4
+          then
+            f "%s" (hex_of_string s)
+          else
+            f "%S" s
+      | Array a ->
+          if too_deep () && a <> [| |] then
+            f "[ ... ]"
+          else
+            pp_value_list ~custom ~indent ~tags ~max_depth fmt (Array.to_list a)
+      | List l ->
+          if too_deep () && l <> [] then
+            f "[ ... ]"
+          else
+            pp_value_list ~custom ~indent ~tags ~max_depth fmt l
+      | Record_array a ->
+          if too_deep () && a <> [| |] then
+            f "{ ... }"
+          else
+            pp_value_record ~custom ~indent ~tags ~max_depth fmt (Array.to_list a)
+      | Record_list l ->
+          if too_deep () && l <> [] then
+            f "{ ... }"
+          else
+            pp_value_record ~custom ~indent ~tags ~max_depth fmt l
 
-and pp_value_list ~indent ~tags fmt l =
-  pp_list ~indent "[" "]" (pp_value ~indent: (indent + 2) ~tags) fmt l
+and pp_value_list ~custom ~indent ~tags ~max_depth fmt l =
+  pp_list ~indent "[" "]"
+    (pp_value ~custom ~indent: (indent + 2) ~tags ~max_depth: (decr_max_depth max_depth))
+    fmt l
 
-and pp_value_record ~indent ~tags fmt l =
+and pp_value_record ~custom ~indent ~tags ~max_depth fmt l =
   pp_list ~indent "{" "}"
     (fun fmt (tag, v) ->
        Format.fprintf fmt "%a = %a" (pp_tag ~tags)
-         tag (pp_value ~indent: (indent + 2) ~tags) v)
+         tag
+         (pp_value ~custom ~indent: (indent + 2) ~tags
+            ~max_depth: (decr_max_depth max_depth))
+         v)
     fmt l
 
-let pp_value fmt value =
+let no_custom ~indent: _ ~max_depth: _ _ _ = false
+
+let pp_value_gen ?(custom = no_custom) ?(indent = 0) ?max_depth () fmt value =
   let not_protype () = Int_map.empty, value in
   let tags, value =
     let from_record l =
@@ -169,11 +196,15 @@ let pp_value fmt value =
       | _ ->
           not_protype ()
   in
-  pp_value ~indent: 0 ~tags fmt value
+  pp_value ~custom ~indent ~tags ~max_depth fmt value
 
-let pp_string fmt string =
+let pp_value = pp_value_gen ()
+
+let pp_string_gen ?custom ?indent ?max_depth () fmt string =
   match Robin.Decode.from_string string with
     | Error e ->
         Format.pp_print_string fmt (Robin.Decode.show_error e)
     | Ok value ->
-        pp_value fmt value
+        pp_value_gen ?custom ?indent ?max_depth () fmt value
+
+let pp_string = pp_string_gen ()
