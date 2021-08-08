@@ -1,6 +1,6 @@
 (executable
  (name test)
- (libraries unix protype protype-robin))
+ (libraries unix protype protype-robin protype-tests))
 
 (rule
  (alias runtest)
